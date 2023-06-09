@@ -1,0 +1,8 @@
+# Change me!
+sno:
+  name: sno
+  domain: example.com
+  pubkey: ~/.ssh/keys/id_ed25519.pub
+  pull-secret: ~/pull-secret.txt
+  arch: x86_64
+  ocp-version: latest-4.13

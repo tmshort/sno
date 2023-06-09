@@ -1,0 +1,149 @@
+#!/bin/bash
+
+set -e
+
+# Install SNO (Single Node Openshift) into a VM or other machine. This creates an ISO that can be mounted for install
+# Based on:
+# https://docs.openshift.com/container-platform/4.13/installing/installing_sno/install-sno-installing-sno.html#install-sno-installing-sno-manually
+
+# Add option to specify config.yaml file
+
+export OCP_VERSION=${OCP_VERSION:-$(cat config.yaml | yq .sno.ocp-version)}
+export ARCH=${ARCH:-$(cat config.yaml | yq .sno.arch)}
+export TMPDIR=${TMPDIR:-/tmp}
+HERE=${PWD}
+# Check for necessary programs
+
+if ! command -v podman >/dev/null; then
+    echo "Need to install podman"
+    exit 1
+fi
+
+if ! command -v curl >/dev/null; then
+    echo "Need to install curl"
+    exit 1
+fi
+
+if ! command -v oc >/dev/null; then
+    echo "Need to install oc"
+    exit 1
+fi
+
+if ! command -v jq >/dev/null; then
+    echo "Need to install jq"
+    exit 1
+fi
+
+if ! command -v yq >/dev/null; then
+    echo "Need to install yq"
+    exit 1
+fi
+
+PSECRET=${PSECRET:-$(cat config.yaml | yq .sno.pull-secret)}
+SSHPUB=${SSHPUB:-$(cat config.yaml | yq .sno.pubkey)}
+BASEDOMAIN=${BASEDOMAIN:-$(cat config.yaml | yq .sno.domain)}
+CLUSTERNAME=${CLUSTERNAME:-$(cat config.yaml | yq .sno.name)}
+
+# Fixup ~ with ${HOME}
+PSECRET=${PSECRET/#~/${HOME}}
+SSHPUB=${SSHPUB/#~/${HOME}}
+
+if [ -z "${PSECRET}" -o ! -f "${PSECRET}" ]; then
+    echo "Need PSECRET defined"
+    echo "Retreive file from: https://console.redhat.com/openshift/install/pull-secret"
+    echo "e.g. PSECRET=~/pull-secret.txt"
+    exit 1
+fi
+
+if [ -z "${SSHPUB}" -o ! -f "${SSHPUB}" ]; then
+    echo "Need SSHPUB defined"
+    echo "Set to path of your public SSH key:"
+    echo "e.g. SSHPUB=~/.ssh/id_ed25519.pub"
+    exit 1
+fi
+
+SNOTMP=$(pwd)/work
+SNOTMP=${SNOTMP:-$(mktemp -d 2>/dev/null || mktemp -d -t 'tmpsno')}
+SNOTMP=$(readlink -f ${SNOTMP})
+
+echo SNOTMP=${SNOTMP}
+if [ -z "${SNOTMP}" ]; then
+    echo "Unable to create temporary directory"
+    exit 1
+fi
+mkdir -p ${SNOTMP}
+
+cat > ${SNOTMP}/install-config.yaml <<EOF
+apiVersion: v1
+baseDomain: ${BASEDOMAIN}
+compute:
+- name: worker
+  replicas: 0
+controlPlane:
+  name: master
+  replicas: 1
+metadata:
+  name: ${CLUSTERNAME}
+networking:
+  clusterNetwork:
+  - cidr: 10.128.0.0/14
+    hostPrefix: 23
+  machineNetwork:
+  - cidr: 10.0.0.0/16
+  networkType: OVNKubernetes
+  serviceNetwork:
+  - 172.30.0.0/16
+platform:
+  none: {}
+bootstrapInPlace:
+  installationDisk: /dev/vda
+pullSecret: '$(cat ${PSECRET})'
+sshKey: |
+  $(cat ${SSHPUB})
+EOF
+
+OIL_URL=https://mirror.openshift.com/pub/openshift-v4/clients/ocp/${OCP_VERSION}/openshift-install-linux.tar.gz
+
+cd ${SNOTMP}
+
+OPENSHIFT_INSTALL=${SNOTMP}/openshift-install
+
+if [ ! -f "${OPENSHIFT_INSTALL}" ]; then
+    echo "Retreiving: ${OIL_URL}"
+    curl -k ${OIL_URL} | tar zx
+    chmod +x ${SNOTMP}/openshift-install
+fi
+
+# Options:
+# qemu -> qemu.formats.{qcow2.gz}.disk.location
+# vmware -> vmware.formats.ova.disk.location
+# bare metal ISO -> metal.formats.iso.disk.location
+
+# These don't quite seem to work
+#$(${SNOTMP}/openshift-install coreos print-stream-json | jq -r ".architectures.${ARCH}.artifacts.metal.formats.iso.disk.location")
+#$(${SNOTMP}/openshift-install coreos print-stream-json | jq -r ".architectures.${ARCH}.artifacts.vmware.formats.ova.disk.location")
+#$(${SNOTMP}/openshift-install coreos print-stream-json | jq -r ".architectures.${ARCH}.artifacts.qemu.formats.\"qcow2.gz\".disk.location")
+ISO_URL=$(${SNOTMP}/openshift-install coreos print-stream-json | grep location | grep $ARCH | grep iso | cut -d\" -f4)
+
+ISO=${SNOTMP}/rhcos-live.${ARCH}.iso
+if [ ! -f ${ISO} ]; then
+    echo "Retreiving: ${ISO_URL}"
+    curl -L ${ISO_URL} -o ${ISO}
+fi
+
+mkdir -p ${SNOTMP}/ocp
+cp ${SNOTMP}/install-config.yaml ${SNOTMP}/ocp
+
+${SNOTMP}/openshift-install --dir=${SNOTMP}/ocp create single-node-ignition-config
+
+#$ alias coreos-installer='podman run --privileged --pull always --rm \
+#        -v /dev:/dev -v /run/udev:/run/udev -v $PWD:/data \
+#        -w /data quay.io/coreos/coreos-installer:release'
+
+cp ${SNOTMP}/ocp/bootstrap-in-place-for-live-iso.ign ${SNOTMP}/iso.ign
+chmod 644 ${SNOTMP}/iso.ign
+
+# "coreos-installer"
+podman run --privileged --pull always --rm -v /dev:/dev -v /run/udev:/run/udev -v ${SNOTMP}:/data -w /data quay.io/coreos/coreos-installer:release iso ignition embed -fi iso.ign rhcos-live.${ARCH}.iso
+echo "ISO File: ${ISO}"
+echo "export KUBECONFIG=${SNOTMP}/ocp/auth/kubeconfig"

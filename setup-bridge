@@ -1,0 +1,25 @@
+#!/bin/bash
+
+# There should already be a bridge interface
+
+if [ $# -eq 0 ]; then
+    echo "Usage: $0 <virtual bridge interface name>"
+    exit 1
+fi
+exit 1
+#BRIDGE_NAME=sno
+
+#ip link add name ${BRIDGE_NAME} type bridge
+#ip link set dev ${BRIDGE_NAME} up
+
+IP=192.168.124.211
+D=${BASEDOMAIN:-example.com}
+C=${CLUSTERNAME:-testcluster}
+
+tee add-to-etc-hosts <<EOF
+${IP} api.$C.$D api-int.$C.$D oauth-openshift.apps.$C.$D console-openshift-console.apps.$C.$D sno
+${IP} grafana-openshift-monitoring.apps.$C.$D thanos-querier-openshift-monitoring.apps.$C.$D
+${IP} prometheus-k8s-openshift-monitoring.apps.$C.$D alertmanager-main-openshift-monitoring.apps.$C.$D
+EOF
+
+
