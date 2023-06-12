@@ -8,3 +8,12 @@ virsh shutdown SNO
 virsh undefine SNO
 virsh vol-delete SNO.qcow2 --pool default
 echo "It may take a minute for everything to clean up..."
+
+echo "New /etc/hosts file:"
+D=${BASEDOMAIN:-$(cat config.yaml | yq .sno.domain)}
+C=${CLUSTERNAME:-$(cat config.yaml | yq .sno.name)}
+T=$(mktemp)
+
+awk "/${C}.${D}/ { next } { print }" /etc/hosts | tee ${T}
+mv -b --suffix .delete-vm ${T} /etc/hosts
+chmod 644 /etc/hosts
