@@ -40,5 +40,5 @@ C=${CLUSTERNAME:-$(cat config.yaml | yq .sno.name)}
 T=$(mktemp)
 #
 awk "/${C}.${D}/ { next } { print }" /etc/hosts | tee ${T}
-mv ${T} /etc/hosts
-chmod 644 /etc/hosts
+sudo mv ${T} /etc/hosts
+sudo chmod 644 /etc/hosts
