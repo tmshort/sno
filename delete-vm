@@ -4,6 +4,7 @@ if [ "$(whoami)" != "root" ]; then
    echo "This needs to be run as root"
    exit 1
 fi
-
+virsh shutdown SNO
 virsh undefine SNO
 virsh vol-delete SNO.qcow2 --pool default
+echo "It may take a minute for everything to clean up..."
