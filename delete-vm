@@ -5,40 +5,30 @@ export LIBVIRT_DEFAULT_URI=qemu:///system
 virsh -q list --all 2>/dev/null | grep -q SNO
 if [ $? -eq 0 ]; then
     virsh undefine SNO
+    virsh -q list --state-running --state-paused 2>/dev/null | grep -q SNO
+    if [ $? -eq 0 ]; then
+        virsh shutdown --domain SNO --mode acpi
+    fi
+
+    virsh vol-delete SNO.qcow2 --pool default
 else
     echo "VM SNO not found"
-    exit 1
 fi
-virsh -q list --state-running --state-paused 2>/dev/null | grep -q SNO
-if [ $? -eq 0 ]; then
-    virsh shutdown --domain SNO --mode acpi
-fi
-
-virsh vol-delete SNO.qcow2 --pool default
 
 
 # We need to get the IP address!
 found=0
-while [ ${found} -eq 0 ]; do
-    IP=$(virsh -q net-dhcp-leases default --mac ${MAC} 2>/dev/null | gawk '{print $5}' | cut -d/ -f1)
-    if [ $? -eq 0 ]; then
-        found=1
-    fi
-    echo -n "."
-    sleep 1
-done
-echo " "
+IP=$(virsh -q net-dhcp-leases default --mac ${MAC} 2>/dev/null | gawk '{print $5}' | cut -d/ -f1)
+if [ $? -eq 0 ]; then
+    virsh net-update --network default --command delete --section dns-host --xml "<host ip='${IP}></host>"
 
-virsh net-update --network default --command delete --section dns-host --xml "<host ip='${IP}></host>"
+    echo "New /etc/hosts file:"
+    D=${BASEDOMAIN:-$(cat config.yaml | yq .sno.domain)}
+    C=${CLUSTERNAME:-$(cat config.yaml | yq .sno.name)}
+    T=$(mktemp)
 
-
-echo "It may take a minute for everything to clean up..."
-
-echo "New /etc/hosts file:"
-D=${BASEDOMAIN:-$(cat config.yaml | yq .sno.domain)}
-C=${CLUSTERNAME:-$(cat config.yaml | yq .sno.name)}
-T=$(mktemp)
-#
-awk "/${C}.${D}/ { next } { print }" /etc/hosts | tee ${T}
-sudo mv ${T} /etc/hosts
-sudo chmod 644 /etc/hosts
+    awk "/${C}.${D}/ { next } { print }" /etc/hosts | tee ${T}
+    sudo mv ${T} /etc/hosts
+    sudo chmod 644 /etc/hosts
+    echo "It may take a minute for everything to clean up..."
+fi
