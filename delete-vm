@@ -4,8 +4,18 @@ if [ "$(whoami)" != "root" ]; then
    echo "This needs to be run as root"
    exit 1
 fi
-virsh shutdown SNO
-virsh undefine SNO
+virsh -q list --all 2>/dev/null | grep -q SNO
+if [ $? -eq 0 ]; then
+    virsh undefine SNO
+else
+    echo "VM SNO not found"
+    exit 1
+fi
+virsh -q list --state-running --state-paused 2>/dev/null | grep -q SNO
+if [ $? -eq 0 ]; then
+    virsh shutdown --domain SNO --mode acpi
+fi
+
 virsh vol-delete SNO.qcow2 --pool default
 echo "It may take a minute for everything to clean up..."
 
@@ -15,5 +25,5 @@ C=${CLUSTERNAME:-$(cat config.yaml | yq .sno.name)}
 T=$(mktemp)
 
 awk "/${C}.${D}/ { next } { print }" /etc/hosts | tee ${T}
-mv -b --suffix .delete-vm ${T} /etc/hosts
+mv ${T} /etc/hosts
 chmod 644 /etc/hosts
