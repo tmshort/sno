@@ -1,5 +1,7 @@
 #!/bin/bash
 
+export LIBVIRT_DEFAULT_URI=qemu:///system
+
 err=0
 ISO="<name of ISO file>"
 if [ $# -eq 0 -o ! -f "$1" ]; then
@@ -16,11 +18,11 @@ if ! command -v virt-install >/dev/null; then
 fi
 
 # This needs root access
-if [ "$(whoami)" != "root" ]; then
-   echo "This needs to be run as root."
-   echo "e.g. sudo $0 ${ISO}"
-   err=1
-fi
+#if [ "$(whoami)" != "root" ]; then
+#   echo "This needs to be run as root."
+#   echo "e.g. sudo $0 ${ISO}"
+#   err=1
+#fi
 
 if ! command -v yq >/dev/null; then
     echo "Need to install yq for root"
@@ -31,23 +33,28 @@ if [ ${err} -ne 0 ]; then
     exit ${err}
 fi
 
-
 ISO=$(readlink -f ${ISO})
 
 MAC=00:11:22:33:44:55
+# USERNAME=${USERNAME:-test}
+# --unattended user-login=${USERNAME}\
+# --disk size=32 \
+# --noautoconsole \
+# --graphics none \
+# --unattended \
 virt-install --name SNO \
              --description "SNO cluster" \
-             --unattended \
              --os-variant rhel8-unknown \
+             --unattended \
+             --autoconsole graphical \
              --ram=16384 \
              --vcpus=4 \
              --disk size=32 \
-             --graphics none \
+             --graphics vnc \
              --cdrom "${ISO}" \
-             --network bridge=virbr0,mac=${MAC}
+             --network bridge=virbr0,mac=${MAC} &
 
 # We need to get the IP address!
-
 found=0
 while [ ${found} -eq 0 ]; do
     IP=$(virsh -q net-dhcp-leases default --mac ${MAC} 2>/dev/null | gawk '{print $5}' | cut -d/ -f1)
@@ -61,12 +68,36 @@ echo " "
 
 D=${BASEDOMAIN:-$(cat config.yaml | yq .sno.domain)}
 C=${CLUSTERNAME:-$(cat config.yaml | yq .sno.name)}
+T=$(mktemp)
 
-tee -a /etc/hosts <<EOF
-${IP} api.$C.$D api-int.$C.$D oauth-openshift.apps.$C.$D console-openshift-console.apps.$C.$D sno
-${IP} grafana-openshift-monitoring.apps.$C.$D thanos-querier-openshift-monitoring.apps.$C.$D
-${IP} prometheus-k8s-openshift-monitoring.apps.$C.$D alertmanager-main-openshift-monitoring.apps.$C.$D
+
+# add sno -> /etc/hosts?
+tee -a ${T} <<EOF
+<host ip='${IP}'>
+<hostname>api.$C.$D</hostname>
+<hostname>api-int.$C.$D</hostname>
+<hostname>oauth-openshift.apps.$C.$D</hostname>
+<hostname>console-openshift-console.apps.$C.$D</hostname>
+<hostname>grafana-openshift-monitoring.apps.$C.$D</hostname>
+<hostname>thanos-querier-openshift-monitoring.apps.$C.$D</hostname>
+<hostname>prometheus-k8s-openshift-monitoring.apps.$C.$D</hostname>
+<hostname>alertmanager-main-openshift-monitoring.apps.$C.$D</hostname>
+</host>
 EOF
+virsh net-update --network default --command add --section dns-host --xml ${T}
+
+# Update /etc/hosts
+sudo tee -a /etc/hosts <<EOF
+${IP} api.$C.$D sno
+EOF
+
+
+function pause(){
+ read -s -n 1 -p "Press any key to continue . . ."
+ echo ""
+}
+#pause
+#ssh -o StrictHostKeyChecking=no core@sno journalctl -f
 
 # Assumes QEMU
 # virsh list --all
