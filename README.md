@@ -54,6 +54,10 @@ Note that `/etc/hosts` is modified to allow the install to occur, and so that yo
 ssh -o StrictHostKeyChecking=no core@sno
 ```
 The `journalctl` command will give a lot more information about installation status.
+```
+journalctl -b -f -u release-image.service -u bootkube.service
+journalctl -f
+```
 
 Eventually, you'll be able to run `oc` or `kubectl`
 ```
