@@ -26,7 +26,7 @@ sudo usermod -aG libvirt $USER
 
 Files:
 
-* `config.yaml` - this contains parameters for the install. You need to include a public SSH key and a `pull-secret.txt` file that you can get from Red Hat (console)[https://console.redhat.com/openshift/install/pull-secret].
+* `config.yaml` - this contains parameters for the install. You need to include a public SSH key and a `pull-secret.txt` file that you can get from Red Hat [console](https://console.redhat.com/openshift/install/pull-secret).
 * `setup-sno` - this script downloads an install ISO and builds a custom ISO. It also creates a file that can be used with `oc` as KUBECONFIG.
 * `setup-vm` - this script, which need to be run as *root* (via `sudo` or equivalent) and called  actually creates the the VM and starts it. Right now it opens up the console; I want it to start unattended. It also updates `/etc/hosts`.
 * `delete-vm` - this script delete the VM (aka _domain_ and the disk volume)
