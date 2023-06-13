@@ -1,6 +1,6 @@
 # SNO
 
-This is a set of script to set up SNO (Single Node Openshift) in a VM.
+This is a set of scripts to set up SNO (Single Node Openshift) in a VM.
 
 ## Requirements
 
@@ -47,7 +47,7 @@ The VM will eventually restart itself, and then continue to install SNO.
 
 You can connect to the console via:
 ```
-sudo virsh --connect qemu:///system console SNO
+virsh --connect qemu:///system console sno
 ```
 But you won't get much out of it.
 
