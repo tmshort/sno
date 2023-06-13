@@ -17,13 +17,6 @@ if ! command -v virt-install >/dev/null; then
     err=1
 fi
 
-# This needs root access
-#if [ "$(whoami)" != "root" ]; then
-#   echo "This needs to be run as root."
-#   echo "e.g. sudo $0 ${ISO}"
-#   err=1
-#fi
-
 if ! command -v yq >/dev/null; then
     echo "Need to install yq for root"
     err=1
@@ -42,17 +35,23 @@ MAC=00:11:22:33:44:55
 # --noautoconsole \
 # --graphics none \
 # --unattended \
+AUTOCONSOLE=${AUTOCONSOLE:-none}
+GRAPHICS=none
+if [ "${AUTOCONSOLE}" == "graphical" ]; then
+    GRAPHICS=vnc
+fi
+
 virt-install --name SNO \
              --description "SNO cluster" \
              --os-variant rhel8-unknown \
              --unattended \
-             --autoconsole graphical \
+             --autoconsole ${AUTOCONSOLE} \
              --ram=16384 \
              --vcpus=4 \
              --disk size=32 \
-             --graphics vnc \
+             --graphics ${GRAPHICS} \
              --cdrom "${ISO}" \
-             --network bridge=virbr0,mac=${MAC} &
+             --network bridge=virbr0,mac=${MAC}
 
 # We need to get the IP address!
 found=0
@@ -70,9 +69,7 @@ D=${BASEDOMAIN:-$(cat config.yaml | yq .sno.domain)}
 C=${CLUSTERNAME:-$(cat config.yaml | yq .sno.name)}
 T=$(mktemp)
 
-
-# add sno -> /etc/hosts?
-tee -a ${T} <<EOF
+cat > ${T} <<EOF
 <host ip='${IP}'>
 <hostname>api.$C.$D</hostname>
 <hostname>api-int.$C.$D</hostname>
@@ -87,17 +84,45 @@ EOF
 virsh net-update --network default --command add --section dns-host --xml ${T}
 
 # Update /etc/hosts
+echo "Need to update /etc/hosts (sudo may prompt for password)"
 sudo tee -a /etc/hosts <<EOF
 ${IP} api.$C.$D sno
 EOF
 
-
-function pause(){
- read -s -n 1 -p "Press any key to continue . . ."
- echo ""
-}
-#pause
-#ssh -o StrictHostKeyChecking=no core@sno journalctl -f
+echo "Waiting for SNO to start..."
+found=0
+while [ $found -eq 0 ]; do
+    virsh -q list --state-running 2>/dev/null | grep -q SNO
+    if [ $? -eq 0 ]; then
+        found=1
+    else
+        sleep 1
+    fi
+done
+echo "Waiting for SNO to shutdown..."
+found=0
+while [ $found -eq 0 ]; do
+    virsh -q list --state-shutoff 2>/dev/null | grep -q SNO
+    if [ $? -eq 0 ]; then
+        found=1
+    else
+        sleep 1
+    fi
+done
+echo "Restarting SNO..."
+virsh start SNO
+echo "Waiting for cluster to come up"
+export KUBECONFIG=$(readlink -f work/ocp/auth/kubeconfig)
+found=0
+while [ $found -eq 0 ]; do
+    oc get clusterversion >/dev/null 2>1
+    if [ $? -eq 0 ]; then
+        found=1
+    else
+        sleep 1
+    fi
+done
+oc get clusterversion
 
 # Assumes QEMU
 # virsh list --all
@@ -105,4 +130,4 @@ function pause(){
 # virsh undefine SNO
 # virsh vol-delete SNO.qcow2 --pool default
 
-# ssh -o StrictHostKeyChecking=no core@${IP}
+# ssh -o StrictHostKeyChecking=no core@sno

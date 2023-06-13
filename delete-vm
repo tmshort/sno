@@ -15,19 +15,18 @@ else
     echo "VM SNO not found"
 fi
 
-
 # We need to get the IP address!
-found=0
+MAC=00:11:22:33:44:55
 IP=$(virsh -q net-dhcp-leases default --mac ${MAC} 2>/dev/null | gawk '{print $5}' | cut -d/ -f1)
 if [ $? -eq 0 ]; then
-    virsh net-update --network default --command delete --section dns-host --xml "<host ip='${IP}></host>"
+    virsh net-update --network default --command delete --section dns-host --xml "<host ip='${IP}'></host>"
 
-    echo "New /etc/hosts file:"
     D=${BASEDOMAIN:-$(cat config.yaml | yq .sno.domain)}
     C=${CLUSTERNAME:-$(cat config.yaml | yq .sno.name)}
     T=$(mktemp)
 
-    awk "/${C}.${D}/ { next } { print }" /etc/hosts | tee ${T}
+    awk "/${C}.${D}/ { next } { print }" /etc/hosts > ${T}
+    echo "Need to cleanup /etc/hosts (sudo may prompt for password)"
     sudo mv ${T} /etc/hosts
     sudo chmod 644 /etc/hosts
     echo "It may take a minute for everything to clean up..."

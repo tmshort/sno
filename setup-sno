@@ -143,7 +143,8 @@ ${SNOTMP}/openshift-install --dir=${SNOTMP}/ocp create single-node-ignition-conf
 cp ${SNOTMP}/ocp/bootstrap-in-place-for-live-iso.ign ${SNOTMP}/iso.ign
 chmod 644 ${SNOTMP}/iso.ign
 
+cp rhcos-live.${ARCH}.iso sno.${ARCH}.iso
 # "coreos-installer"
-podman run --privileged --pull always --rm -v /dev:/dev -v /run/udev:/run/udev -v ${SNOTMP}:/data -w /data quay.io/coreos/coreos-installer:release iso ignition embed -fi iso.ign rhcos-live.${ARCH}.iso
-echo "ISO File: ${ISO}"
+podman run --privileged --pull always --rm -v /dev:/dev -v /run/udev:/run/udev -v ${SNOTMP}:/data -w /data quay.io/coreos/coreos-installer:release iso ignition embed -fi iso.ign sno.${ARCH}.iso
+echo "ISO File: $(readlink -f ${SNOTMP}/sno.${ARCH}.iso)"
 echo "export KUBECONFIG=${SNOTMP}/ocp/auth/kubeconfig"
