@@ -1,6 +1,8 @@
-# sno
+# SNO
 
 This is a set of script to set up SNO (Single Node Openshift) in a VM.
+
+## Requirements
 
 It makes _LOTS_ of assumptions. I have only tested it on my Fedora 37 machine.
 
@@ -25,12 +27,14 @@ sudo usermod -aG libvirt $USER
 ```
 (There might be more required.)
 
-Files:
+## Files
 
 * `config.yaml` - this contains parameters for the install. You need to include a public SSH key and a `pull-secret.txt` file that you can get from Red Hat [console](https://console.redhat.com/openshift/install/pull-secret).
 * `setup-sno` - this script downloads an install ISO and builds a custom ISO. It also creates a file that can be used with `oc` as KUBECONFIG.
 * `setup-vm` - this script, which need to be run as *root* (via `sudo` or equivalent) and called  actually creates the the VM and starts it. Right now it opens up the console; I want it to start unattended. It also updates `/etc/hosts`.
 * `delete-vm` - this script delete the VM (aka _domain_ and the disk volume)
+
+## How To Use
 
 The intent is for `setup-vm` to be started with the ISO.
 ```
@@ -65,4 +69,7 @@ export KUBECONFIG=$(pwd)/work/ocp/auth/kubeconfig
 oc get clusterversion
 ```
 
-As of right now, I have the status of "the cluster operator ingress is degraded". Something to figure out.
+## Notes
+
+* The generated ISO has certificates that are only good for a few days. You should run `setup-sno` again in order to refresh the ISO certificates.
+* The temporary download directory is named `work`, and will be cleaned up with `git clean -fdx`.

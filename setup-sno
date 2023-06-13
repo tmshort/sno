@@ -126,6 +126,8 @@ fi
 ISO_URL=$(${SNOTMP}/openshift-install coreos print-stream-json | grep location | grep $ARCH | grep iso | cut -d\" -f4)
 
 ISO=${SNOTMP}/rhcos-live.${ARCH}.iso
+ISO2=${SNOTMP}/sno.${ARCH}.iso
+
 if [ ! -f ${ISO} ]; then
     echo "Retreiving: ${ISO_URL}"
     curl -L ${ISO_URL} -o ${ISO}
@@ -143,8 +145,9 @@ ${SNOTMP}/openshift-install --dir=${SNOTMP}/ocp create single-node-ignition-conf
 cp ${SNOTMP}/ocp/bootstrap-in-place-for-live-iso.ign ${SNOTMP}/iso.ign
 chmod 644 ${SNOTMP}/iso.ign
 
-cp rhcos-live.${ARCH}.iso sno.${ARCH}.iso
+rm -rf ${ISO2}
+cp ${ISO} ${ISO2}
 # "coreos-installer"
 podman run --privileged --pull always --rm -v /dev:/dev -v /run/udev:/run/udev -v ${SNOTMP}:/data -w /data quay.io/coreos/coreos-installer:release iso ignition embed -fi iso.ign sno.${ARCH}.iso
-echo "ISO File: $(readlink -f ${SNOTMP}/sno.${ARCH}.iso)"
+echo "ISO File: ${ISO2}"
 echo "export KUBECONFIG=${SNOTMP}/ocp/auth/kubeconfig"

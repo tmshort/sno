@@ -3,12 +3,10 @@
 export LIBVIRT_DEFAULT_URI=qemu:///system
 
 err=0
-ISO="<name of ISO file>"
-if [ $# -eq 0 -o ! -f "$1" ]; then
+ISO=${1:-$(readlink -f ${PWD}/work/sno.x86_64.iso)}
+if [ ! -f "${ISO}" ]; then
     echo "Need ISO image as 1st argument"
     err=1
-else
-    ISO=$1
 fi
 
 if ! command -v virt-install >/dev/null; then
@@ -28,7 +26,8 @@ fi
 
 ISO=$(readlink -f ${ISO})
 
-MAC=00:11:22:33:44:55
+SNO=${CLUSTERNAME:-$(cat config.yaml | yq .sno.name)}
+
 # USERNAME=${USERNAME:-test}
 # --unattended user-login=${USERNAME}\
 # --disk size=32 \
@@ -41,8 +40,8 @@ if [ "${AUTOCONSOLE}" == "graphical" ]; then
     GRAPHICS=vnc
 fi
 
-virt-install --name SNO \
-             --description "SNO cluster" \
+virt-install --name ${SNO} \
+             --description "${SNO} cluster" \
              --os-variant rhel8-unknown \
              --unattended \
              --autoconsole ${AUTOCONSOLE} \
@@ -51,13 +50,13 @@ virt-install --name SNO \
              --disk size=32 \
              --graphics ${GRAPHICS} \
              --cdrom "${ISO}" \
-             --network bridge=virbr0,mac=${MAC}
+             --network bridge=virbr0
 
 # We need to get the IP address!
 found=0
 while [ ${found} -eq 0 ]; do
-    IP=$(virsh -q net-dhcp-leases default --mac ${MAC} 2>/dev/null | gawk '{print $5}' | cut -d/ -f1)
-    if [ $? -eq 0 ]; then
+    IP=$(virsh -q domifaddr ${SNO} --source arp 2>/dev/null | awk '{print $4}' | cut -d/ -f1)
+    if [ $? -eq 0 -a -n "${IP}" ]; then
         found=1
     fi
     echo -n "."
@@ -66,6 +65,7 @@ done
 echo " "
 
 D=${BASEDOMAIN:-$(cat config.yaml | yq .sno.domain)}
+# Same as ${SNO}
 C=${CLUSTERNAME:-$(cat config.yaml | yq .sno.name)}
 T=$(mktemp)
 
@@ -79,6 +79,7 @@ cat > ${T} <<EOF
 <hostname>thanos-querier-openshift-monitoring.apps.$C.$D</hostname>
 <hostname>prometheus-k8s-openshift-monitoring.apps.$C.$D</hostname>
 <hostname>alertmanager-main-openshift-monitoring.apps.$C.$D</hostname>
+<hostname>canary-openshift-ingress-canary.apps.$C.$D</hostname>
 </host>
 EOF
 virsh net-update --network default --command add --section dns-host --xml ${T}
@@ -86,48 +87,49 @@ virsh net-update --network default --command add --section dns-host --xml ${T}
 # Update /etc/hosts
 echo "Need to update /etc/hosts (sudo may prompt for password)"
 sudo tee -a /etc/hosts <<EOF
-${IP} api.$C.$D sno
+${IP} api.$C.$D ${SNO}
 EOF
 
-echo "Waiting for SNO to start..."
+echo "Waiting for ${SNO} to start..."
 found=0
 while [ $found -eq 0 ]; do
-    virsh -q list --state-running 2>/dev/null | grep -q SNO
+    virsh -q list --state-running 2>/dev/null | grep -q ${SNO}
     if [ $? -eq 0 ]; then
         found=1
     else
         sleep 1
     fi
 done
-echo "Waiting for SNO to shutdown..."
+echo "Waiting for ${SNO} to shutdown..."
 found=0
 while [ $found -eq 0 ]; do
-    virsh -q list --state-shutoff 2>/dev/null | grep -q SNO
+    virsh -q list --state-shutoff 2>/dev/null | grep -q ${SNO}
     if [ $? -eq 0 ]; then
         found=1
     else
         sleep 1
     fi
 done
-echo "Restarting SNO..."
-virsh start SNO
+echo "Restarting ${SNO}..."
+virsh start ${SNO}
 echo "Waiting for cluster to come up"
 export KUBECONFIG=$(readlink -f work/ocp/auth/kubeconfig)
 found=0
 while [ $found -eq 0 ]; do
-    oc get clusterversion >/dev/null 2>1
+    oc get clusterversion >/dev/null 2>&1
     if [ $? -eq 0 ]; then
         found=1
     else
         sleep 1
     fi
 done
+echo "KUBECONFIG=${KUBECONFIG}"
 oc get clusterversion
 
 # Assumes QEMU
 # virsh list --all
-# virsh --connect qemu:///system console SNO
-# virsh undefine SNO
-# virsh vol-delete SNO.qcow2 --pool default
+# virsh --connect qemu:///system console ${SNO}
+# virsh undefine ${SNO}
+# virsh vol-delete ${SNO}.qcow2 --pool default
 
-# ssh -o StrictHostKeyChecking=no core@sno
+# ssh -o StrictHostKeyChecking=no core@${SNO}
