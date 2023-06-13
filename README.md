@@ -23,6 +23,7 @@ sudo systemctl start libvirtd</dnf
 sudo usermod -aG kvm $USER
 sudo usermod -aG libvirt $USER
 ```
+(There might be more required.)
 
 Files:
 
@@ -35,13 +36,10 @@ The intent is for `setup-vm` to be started with the ISO.
 ```
 emacs config.yaml
 ./setup-sno
-sudo ./setup-vm work/rhcos-live.x86_64.iso
+./setup-vm work/rhcos-live.x86_64.iso
 ```
 
-At this point, the VM will eventually shut itself down, and it will need to be restarted:
-```
-sudo virsh start SNO
-```
+The VM will eventually restart itself, and then continue to install SNO.
 
 You can connect to the console via:
 ```
@@ -53,6 +51,8 @@ Note that `/etc/hosts` is modified to allow the install to occur, and so that yo
 ```
 ssh -o StrictHostKeyChecking=no core@sno
 ```
+(If you are creating and deleting many VMs, the host keys change, but the IP/DNS won't, the `StrictHostKeyChecking` option avoids this.)
+
 The `journalctl` command will give a lot more information about installation status.
 ```
 journalctl -b -f -u release-image.service -u bootkube.service
