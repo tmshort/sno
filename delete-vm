@@ -4,11 +4,14 @@ export LIBVIRT_DEFAULT_URI=qemu:///system
 
 SNO=${CLUSTERNAME:-$(cat config.yaml | yq .sno.name)}
 IP=
-virsh -q list --all 2>/dev/null | grep -q ${SNO}
+virsh dumpxml ${SNO} >/dev/null 2>&1
 if [ $? -eq 0 ]; then
+    # Assumes it's running
     IP=$(virsh -q domifaddr ${SNO} --source arp 2>/dev/null | awk '{print $4}' | cut -d/ -f1)
     if [ $? -ne 0 -o -z "${IP}" ]; then
         echo "Unable to get IP address"
+        # Backup method
+        IP=$(getent hosts ${SNO} | cut -d" " -f1)
     fi
     virsh undefine ${SNO}
     virsh -q list --state-running --state-paused 2>/dev/null | grep -q ${SNO}

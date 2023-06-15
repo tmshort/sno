@@ -20,13 +20,18 @@ if ! command -v yq >/dev/null; then
     err=1
 fi
 
+SNO=${CLUSTERNAME:-$(cat config.yaml | yq .sno.name)}
+virsh dumpxml ${SNO} >/dev/null 2>&1
+if [ $? -eq 0 ]; then
+    echo "VM ${SNO} already exists"
+    err=1
+fi
+
 if [ ${err} -ne 0 ]; then
     exit ${err}
 fi
 
 ISO=$(readlink -f ${ISO})
-
-SNO=${CLUSTERNAME:-$(cat config.yaml | yq .sno.name)}
 
 # USERNAME=${USERNAME:-test}
 # --unattended user-login=${USERNAME}\
@@ -46,8 +51,8 @@ virt-install --name ${SNO} \
              --unattended \
              --autoconsole ${AUTOCONSOLE} \
              --ram=16384 \
-             --vcpus=4 \
-             --disk size=32 \
+             --vcpus=8 \
+             --disk size=120 \
              --graphics ${GRAPHICS} \
              --cdrom "${ISO}" \
              --network bridge=virbr0

@@ -40,8 +40,10 @@ The intent is for `setup-vm` to be started with the ISO.
 ```
 emacs config.yaml
 ./setup-sno
-./setup-vm work/rhcos-live.x86_64.iso
+./setup-vm work/sno.x86_64.iso
 ```
+Ths ISO file is optional (if the default temp directory is used).
+
 
 The VM will eventually restart itself, and then continue to install SNO.
 
