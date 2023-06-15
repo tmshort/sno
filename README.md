@@ -51,7 +51,10 @@ You can connect to the console via:
 ```
 virsh --connect qemu:///system console sno
 ```
-But you won't get much out of it.
+But you won't get much out of it. You can run other `virsh` commands; you might need to set the following environment variable:
+```
+export LIBVIRT_DEFAULT_URI=qemu:///system
+```
 
 Note that `/etc/hosts` is modified to allow the install to occur, and so that you can access the base OS:
 ```
