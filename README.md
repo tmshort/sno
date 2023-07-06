@@ -19,9 +19,9 @@ You will need:
 
 This also assumes that you've done all the proper startup and config for libvirtd:
 ```
-sudo dnf install qemu-kvm virt-manager libvirt
+sudo dnf install qemu virt-manager virt-install libvirt
 sudo systemctl enable --now libvirtd
-sudo systemctl start libvirtd</dnf
+sudo systemctl start libvirtd
 sudo usermod -aG kvm $USER
 sudo usermod -aG libvirt $USER
 ```
