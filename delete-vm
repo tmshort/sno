@@ -2,7 +2,7 @@
 
 export LIBVIRT_DEFAULT_URI=qemu:///system
 
-SNO=${CLUSTERNAME:-$(cat config.yaml | yq .sno.name)}
+SNO=${CLUSTERNAME:-$(yq .sno.name < config.yaml)}
 IP=
 virsh dumpxml ${SNO} >/dev/null 2>&1
 if [ $? -eq 0 ]; then
@@ -27,8 +27,8 @@ fi
 if [ -n "${IP}" ]; then
     virsh net-update --network default --command delete --section dns-host --xml "<host ip='${IP}'></host>"
 
-    D=${BASEDOMAIN:-$(cat config.yaml | yq .sno.domain)}
-    C=${CLUSTERNAME:-$(cat config.yaml | yq .sno.name)}
+    D=${BASEDOMAIN:-$(yq .sno.domain < config.yaml)}
+    C=${CLUSTERNAME:-$(yq .sno.name < config.yaml)}
     T=$(mktemp)
 
     awk "/${C}.${D}/ { next } { print }" /etc/hosts > ${T}

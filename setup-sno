@@ -8,8 +8,8 @@ set -e
 
 # Add option to specify config.yaml file
 
-export OCP_VERSION=${OCP_VERSION:-$(cat config.yaml | yq .sno.ocp-version)}
-export ARCH=${ARCH:-$(cat config.yaml | yq .sno.arch)}
+export OCP_VERSION=${OCP_VERSION:-$(yq .sno.ocp-version < config.yaml)}
+export ARCH=${ARCH:-$(yq .sno.arch < config.yaml)}
 export TMPDIR=${TMPDIR:-/tmp}
 HERE=${PWD}
 # Check for necessary programs
@@ -39,10 +39,10 @@ if ! command -v yq >/dev/null; then
     exit 1
 fi
 
-PSECRET=${PSECRET:-$(cat config.yaml | yq .sno.pull-secret)}
-SSHPUB=${SSHPUB:-$(cat config.yaml | yq .sno.pubkey)}
-BASEDOMAIN=${BASEDOMAIN:-$(cat config.yaml | yq .sno.domain)}
-CLUSTERNAME=${CLUSTERNAME:-$(cat config.yaml | yq .sno.name)}
+PSECRET=${PSECRET:-$(yq .sno.pull-secret < config.yaml)}
+SSHPUB=${SSHPUB:-$(yq .sno.pubkey < config.yaml)}
+BASEDOMAIN=${BASEDOMAIN:-$(yq .sno.domain < config.yaml)}
+CLUSTERNAME=${CLUSTERNAME:-$(yq .sno.name < config.yaml)}
 
 # Fixup ~ with ${HOME}
 PSECRET=${PSECRET/#~/${HOME}}
