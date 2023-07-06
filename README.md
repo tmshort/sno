@@ -8,7 +8,7 @@ It makes _LOTS_ of assumptions. I have only tested it on my Fedora 37 machine.
 
 You will need:
 * `oc`
-* `podman`
+* `podman` (aliased to `docker`) or `docker`
 * `curl`
 * `jq` and `yq`
 * `qemu-kvm`
