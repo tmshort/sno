@@ -31,16 +31,16 @@ sudo usermod -aG libvirt $USER
 
 * `config.yaml` - this contains parameters for the install. You need to include a public SSH key and a `pull-secret.txt` file that you can get from Red Hat [console](https://console.redhat.com/openshift/install/pull-secret).
 * `setup-sno` - this script downloads an install ISO and builds a custom ISO. It also creates a file that can be used with `oc` as KUBECONFIG.
-* `setup-vm` - this script actually creates the the VM and starts it. It also updates `/etc/hosts`, and needs to run `sudo` to do that.
+* `create-vm` - this script actually creates the the VM and starts it. It also updates `/etc/hosts`, and needs to run `sudo` to do that.
 * `delete-vm` - this script delete the VM (aka _domain_ and the disk volume). It will also update `/etc/hosts`, and needs to run `sudo` to do that.
 
 ## How To Use
 
-The intent is for `setup-vm` to be started with the ISO.
+The intent is for `create-vm` to be started with the ISO; but it will default to whatever is specified in `config.yaml`.
 ```
 emacs config.yaml
 ./setup-sno
-./setup-vm work/sno.x86_64.iso
+./create-vm work/sno.x86_64.iso
 ```
 Ths ISO file is optional (if the default temp directory is used).
 
