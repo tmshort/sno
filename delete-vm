@@ -13,6 +13,7 @@ if [ $? -eq 0 ]; then
         # Backup method
         IP=$(getent hosts ${SNO} | cut -d" " -f1)
     fi
+    # Might want to use destroy here?
     virsh undefine ${SNO}
     virsh -q list --state-running --state-paused 2>/dev/null | grep -q ${SNO}
     if [ $? -eq 0 ]; then
