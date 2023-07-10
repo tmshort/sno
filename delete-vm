@@ -13,11 +13,11 @@ if [ $? -eq 0 ]; then
         # Backup method
         IP=$(getent hosts ${SNO} | cut -d" " -f1)
     fi
-    # Might want to use destroy here?
+
     virsh undefine ${SNO}
     virsh -q list --state-running --state-paused 2>/dev/null | grep -q ${SNO}
     if [ $? -eq 0 ]; then
-        virsh shutdown --domain ${SNO} --mode acpi
+        virsh destroy --domain ${SNO}
     fi
 
     virsh vol-delete ${SNO}.qcow2 --pool default
