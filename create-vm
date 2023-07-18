@@ -99,6 +99,12 @@ while [ $found -eq 0 ]; do
         sleep 1
     fi
 done
+# Update /etc/hosts
+echo "Need to update /etc/hosts (sudo may prompt for password)"
+sudo tee -a /etc/hosts <<EOF
+${IP} api.$C.$D ${SNO}
+EOF
+# Sometimes we get stuck here...
 echo "Waiting for ${SNO} to shutdown..."
 found=0
 while [ $found -eq 0 ]; do
@@ -111,12 +117,6 @@ while [ $found -eq 0 ]; do
 done
 echo "Restarting ${SNO}..."
 virsh start ${SNO}
-
-# Update /etc/hosts
-echo "Need to update /etc/hosts (sudo may prompt for password)"
-sudo tee -a /etc/hosts <<EOF
-${IP} api.$C.$D ${SNO}
-EOF
 
 echo "Waiting for cluster to come up"
 export KUBECONFIG=$(readlink -f work/ocp/auth/kubeconfig)
