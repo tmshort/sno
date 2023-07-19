@@ -15,8 +15,8 @@ if [ $? -eq 0 ]; then
     fi
 
     virsh undefine ${SNO}
-    virsh -q list --state-running --state-paused 2>/dev/null | grep -q ${SNO}
-    if [ $? -eq 0 ]; then
+    state=$(virsh domstate ${SNO} 2>/dev/null)
+    if [ "${state}" == "running" ]; then
         virsh destroy --domain ${SNO}
     fi
 
@@ -36,5 +36,4 @@ if [ -n "${IP}" ]; then
     echo "Need to cleanup /etc/hosts (sudo may prompt for password)"
     sudo mv ${T} /etc/hosts
     sudo chmod 644 /etc/hosts
-    echo "It may take a minute for everything to clean up..."
 fi
