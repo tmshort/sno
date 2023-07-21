@@ -69,7 +69,7 @@ virt-install --name ${SNO} \
 # We need to get the IP address!
 
 echo "Looking for ${SNO} IP address"
-while [ ${found} -eq 0 ]; do
+while true; do
     IP=$(virsh -q domifaddr ${SNO} --source arp 2>/dev/null | awk '{print $4}' | cut -d/ -f1)
     if [ $? -eq 0 -a -n "${IP}" ]; then
         break
@@ -132,7 +132,7 @@ echo "Waiting for cluster to come up"
 # Copy to a more convenient place
 cp $(pwd)/work/ocp/auth/kubeconfig ${KUBECNFIG} $(pwd)/work/kubeconfig
 export KUBECONFIG=$(readlink -f ${PWD}work/kubeconfig)
-while [ $found -eq 0 ]; do
+while true; do
     oc get clusterversion >/dev/null 2>&1
     if [ $? -eq 0 ]; then
         break
