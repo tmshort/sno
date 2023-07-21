@@ -54,6 +54,7 @@ if [ "${AUTOCONSOLE}" == "graphical" ]; then
     GRAPHICS=vnc
 fi
 
+echo "$(date +%H:%M:%S) Creating '${SNO}' VM"
 virt-install --name ${SNO} \
              --description "${SNO} cluster" \
              --os-variant rhel8-unknown \
@@ -68,7 +69,7 @@ virt-install --name ${SNO} \
 
 # We need to get the IP address!
 
-echo "Looking for ${SNO} IP address"
+echo -n "$(date +%H:%M:%S) Looking for '${SNO}' IP address"
 while true; do
     IP=$(virsh -q domifaddr ${SNO} --source arp 2>/dev/null | awk '{print $4}' | cut -d/ -f1)
     if [ $? -eq 0 -a -n "${IP}" ]; then
@@ -77,7 +78,7 @@ while true; do
     echo -n "."
     sleep 1
 done
-echo " "
+echo "${IP}"
 
 D=${BASEDOMAIN:-$(yq .sno.domain < config.yaml)}
 # Same as ${SNO}
@@ -99,7 +100,7 @@ cat > ${T} <<EOF
 EOF
 virsh net-update --network default --command add --section dns-host --xml ${T}
 
-echo "Waiting for ${SNO} to start..."
+echo "$(date +%H:%M:%S) Waiting for '${SNO}' VM to start..."
 while true; do
     state=$(virsh domstate ${SNO} 2>/dev/null)
     if [ "${state}" == "running" ]; then
@@ -108,16 +109,16 @@ while true; do
     sleep 1
 done
 # Update /etc/hosts
-echo "Need to update /etc/hosts (sudo may prompt for password)"
+echo "$(date +%H:%M:%S) Need to update /etc/hosts (sudo may prompt for password)"
 sudo tee -a /etc/hosts <<EOF
 ${IP} api.$C.$D ${SNO}
 EOF
 # Sometimes we get stuck here...
-echo "Waiting for ${SNO} to complete initial install and shutdown..."
+echo "$(date +%H:%M:%S) Waiting for '${SNO}' VM to complete initial install and shutdown..."
 while true; do
     state=$(virsh domstate ${SNO} 2>/dev/null)
     if [ "${state}" == "" ]; then
-        echo "VM ${SNO} not found"
+        echo "$(date +%H:%M:%S) VM '${SNO}' not found"
         exit 1
     fi
     if [ "${state}" == "shut off" ]; then
@@ -125,13 +126,13 @@ while true; do
     fi
     sleep 1
 done
-echo "Restarting ${SNO} to start cluster..."
+echo "$(date +%H:%M:%S) Restarting '${SNO}' VM to start cluster..."
 virsh start ${SNO}
 
-echo "Waiting for cluster to come up"
+echo "$(date +%H:%M:%S) Waiting for '${SNO}' cluster to come up"
 # Copy to a more convenient place
 cp $(pwd)/work/ocp/auth/kubeconfig ${KUBECNFIG} $(pwd)/work/kubeconfig
-export KUBECONFIG=$(readlink -f ${PWD}work/kubeconfig)
+export KUBECONFIG=$(readlink -f ${PWD}/work/kubeconfig)
 while true; do
     oc get clusterversion >/dev/null 2>&1
     if [ $? -eq 0 ]; then
@@ -140,5 +141,6 @@ while true; do
         sleep 1
     fi
 done
+echo "$(date +%H:%M:%S) '${SNO}' cluster started"
 echo "KUBECONFIG=${KUBECONFIG}"
 oc get clusterversion
