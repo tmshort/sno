@@ -16,7 +16,7 @@ if ! command -v virt-install >/dev/null; then
 fi
 
 if ! command -v yq >/dev/null; then
-    echo "Need to install yq for root"
+    echo "Need to install yq"
     err=1
 fi
 
@@ -129,23 +129,16 @@ echo "Restarting ${SNO} to start cluster..."
 virsh start ${SNO}
 
 echo "Waiting for cluster to come up"
-export KUBECONFIG=$(readlink -f work/ocp/auth/kubeconfig)
-found=0
+# Copy to a more convenient place
+cp $(pwd)/work/ocp/auth/kubeconfig ${KUBECNFIG} $(pwd)/work/kubeconfig
+export KUBECONFIG=$(readlink -f ${PWD}work/kubeconfig)
 while [ $found -eq 0 ]; do
     oc get clusterversion >/dev/null 2>&1
     if [ $? -eq 0 ]; then
-        found=1
+        break
     else
         sleep 1
     fi
 done
 echo "KUBECONFIG=${KUBECONFIG}"
 oc get clusterversion
-
-# Assumes QEMU
-# virsh list --all
-# virsh --connect qemu:///system console ${SNO}
-# virsh undefine ${SNO}
-# virsh vol-delete ${SNO}.qcow2 --pool default
-
-# ssh -o StrictHostKeyChecking=no core@${SNO}

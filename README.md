@@ -44,7 +44,6 @@ emacs config.yaml
 ```
 Ths ISO file is optional (if the default temp directory is used).
 
-
 The VM will eventually restart itself, and then continue to install SNO.
 
 You can connect to the console via:
@@ -70,11 +69,11 @@ journalctl -f
 
 Eventually, you'll be able to run `oc` or `kubectl`
 ```
-export KUBECONFIG=$(pwd)/work/ocp/auth/kubeconfig
+export KUBECONFIG=$(pwd)/work/kubeconfig
 oc get clusterversion
 ```
 
 ## Notes
 
-* The generated ISO has certificates that are only good for a few days. You should run `setup-sno` again in order to refresh the ISO certificates.
+* The generated ISO has certificates that are only good for a few days. You should delete the `work` directory and run `setup-sno` again in order to refresh the ISO certificates.
 * The temporary download directory is named `work`, and will be cleaned up with `git clean -fdx`.
