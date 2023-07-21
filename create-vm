@@ -33,6 +33,15 @@ fi
 
 ISO=$(readlink -f ${ISO})
 
+# Check timestamp, it must be within 24 hours (24 * 60 * 60 = 86400)
+ISOTS=$(stat -c%Y ${ISO})
+ISOEXP=$((${ISOTS} + 86400))
+NOW=$(date +%s)
+if [ ${NOW} -gt ${ISOEXP} ]; then
+    echo "ISO is out of date. Delete work directory, then run 'setup-sno'"
+    exit 1
+fi
+
 # USERNAME=${USERNAME:-test}
 # --unattended user-login=${USERNAME}\
 # --disk size=32 \
@@ -58,11 +67,12 @@ virt-install --name ${SNO} \
              --network bridge=virbr0
 
 # We need to get the IP address!
-found=0
+
+echo "Looking for ${SNO} IP address"
 while [ ${found} -eq 0 ]; do
     IP=$(virsh -q domifaddr ${SNO} --source arp 2>/dev/null | awk '{print $4}' | cut -d/ -f1)
     if [ $? -eq 0 -a -n "${IP}" ]; then
-        found=1
+        break
     fi
     echo -n "."
     sleep 1
@@ -103,7 +113,7 @@ sudo tee -a /etc/hosts <<EOF
 ${IP} api.$C.$D ${SNO}
 EOF
 # Sometimes we get stuck here...
-echo "Waiting for ${SNO} to shutdown..."
+echo "Waiting for ${SNO} to complete initial install and shutdown..."
 while true; do
     state=$(virsh domstate ${SNO} 2>/dev/null)
     if [ "${state}" == "" ]; then
@@ -115,7 +125,7 @@ while true; do
     fi
     sleep 1
 done
-echo "Restarting ${SNO}..."
+echo "Restarting ${SNO} to start cluster..."
 virsh start ${SNO}
 
 echo "Waiting for cluster to come up"
